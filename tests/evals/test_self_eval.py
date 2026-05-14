@@ -46,7 +46,9 @@ def workspace_path(tmp_path_factory: pytest.TempPathFactory) -> Path:
 def test_self_eval_draft_is_standalone_article(workspace_path: Path) -> None:
     """draft.md must be a standalone article, not an outline dump."""
     draft = require_artifact(workspace_path, "draft.md")
-    assert is_standalone_article(draft), "draft.md must be a standalone article with prose paragraphs"
+    assert is_standalone_article(draft), (
+        "draft.md must be a standalone article with prose paragraphs"
+    )
 
 
 @pytest.mark.llm
@@ -76,8 +78,12 @@ def test_self_eval_draft_avoids_generic_phrases(workspace_path: Path) -> None:
 def test_self_eval_final_is_article_or_blocked(workspace_path: Path) -> None:
     """final.md must be either a valid article or explicitly blocked."""
     final = require_artifact(workspace_path, "final.md")
-    is_valid = final.startswith("# Finalization Blocked") or is_standalone_article(final)
-    assert is_valid, "final.md must be a valid article or start with '# Finalization Blocked'"
+    is_valid = final.startswith("# Finalization Blocked") or is_standalone_article(
+        final
+    )
+    assert is_valid, (
+        "final.md must be a valid article or start with '# Finalization Blocked'"
+    )
 
 
 @pytest.mark.llm
@@ -85,7 +91,9 @@ def test_self_eval_review_has_exactly_one_verdict(workspace_path: Path) -> None:
     """technical_review.md must contain exactly one verdict."""
     review = require_artifact(workspace_path, "technical_review.md")
     count = count_verdicts(review)
-    assert count == 1, f"expected exactly 1 verdict in technical_review.md, found {count}"
+    assert count == 1, (
+        f"expected exactly 1 verdict in technical_review.md, found {count}"
+    )
 
 
 @pytest.mark.llm
@@ -93,7 +101,9 @@ def test_self_eval_review_verdict_is_valid(workspace_path: Path) -> None:
     """Review verdict must be PASS or BLOCK."""
     review = require_artifact(workspace_path, "technical_review.md")
     verdict = extract_verdict(review)
-    assert verdict in ("PASS", "BLOCK"), f"invalid verdict in technical_review.md: {verdict!r}"
+    assert verdict in ("PASS", "BLOCK"), (
+        f"invalid verdict in technical_review.md: {verdict!r}"
+    )
 
 
 @pytest.mark.llm
@@ -103,9 +113,13 @@ def test_self_eval_warnings_match_verdict(workspace_path: Path) -> None:
     warnings = require_artifact(workspace_path, "warnings.md")
     verdict = extract_verdict(review)
     if verdict == "BLOCK":
-        assert "BLOCK" in warnings, "warnings.md must mention BLOCK when review verdict is BLOCK"
+        assert "BLOCK" in warnings, (
+            "warnings.md must mention BLOCK when review verdict is BLOCK"
+        )
     elif verdict == "PASS":
-        assert "BLOCK" not in warnings, "warnings.md must not mention BLOCK when review verdict is PASS"
+        assert "BLOCK" not in warnings, (
+            "warnings.md must not mention BLOCK when review verdict is PASS"
+        )
 
 
 @pytest.mark.llm
@@ -122,9 +136,19 @@ def test_self_eval_analysis_references_file_paths(workspace_path: Path) -> None:
 def test_self_eval_review_references_file_paths(workspace_path: Path) -> None:
     """technical_review.md must reference file paths for its claims."""
     review = require_artifact(workspace_path, "technical_review.md")
-    paths = extract_file_paths(review)
+    sections = extract_review_sections(review)
+    claim_sections = [
+        "Supported Claims",
+        "Weak Or Unsupported Claims",
+        "Exaggerations",
+    ]
+    claim_text = "\n".join(
+        "\n".join(sections.get(section, [])) for section in claim_sections
+    )
+    paths = extract_file_paths(claim_text)
     assert len(paths) >= 1, (
-        f"technical_review.md references no file paths, expected at least 1: {paths}"
+        "technical_review.md claim sections reference no file paths, "
+        f"expected at least 1: {paths}"
     )
 
 

@@ -1,5 +1,6 @@
 """Use case for generating a local portfolio draft from a repository."""
 
+import re
 from pathlib import Path
 from time import perf_counter
 from typing import Any
@@ -21,6 +22,25 @@ from src.domain.entities.draft_generation import (
     DraftResult,
 )
 from src.domain.entities.project_scan import FileInfo, ProjectScanResult, SelectedFile
+
+FORBIDDEN_DRAFT_HEADINGS = (
+    "## Outline",
+    "Technical Analysis",
+    "Portfolio Positioning",
+    "Claims To Avoid",
+    "Supported Claims",
+    "Weak Or Unsupported Claims",
+    "Required Corrections",
+)
+
+GENERIC_DRAFT_PHRASES = (
+    "users often struggle",
+    "seamlessly",
+    "production-ready",
+    "scalable",
+    "full-featured",
+    "must-have",
+)
 
 
 class DraftProjectPostUseCase:
@@ -110,12 +130,32 @@ class DraftProjectPostUseCase:
         )
         timings["draft_ms"] = self._elapsed_ms(stage_start)
 
+        draft_contract_issues = self._draft_contract_issues(draft)
+        if draft_contract_issues:
+            stage_start = perf_counter()
+            draft = self.writer.repair(
+                draft=draft,
+                issues=draft_contract_issues,
+                outline=outline,
+                technical_analysis=technical_analysis,
+                portfolio_positioning=portfolio_positioning,
+                language=request.language,
+            )
+            timings["draft_repair_ms"] = self._elapsed_ms(stage_start)
+        else:
+            timings["draft_repair_ms"] = 0.0
+
         stage_start = perf_counter()
         technical_review = self.reviewer.generate(
             draft=draft,
             project_facts=project_facts,
             technical_analysis=technical_analysis,
             language=request.language,
+        )
+        technical_review = self._ensure_technical_review_contract(
+            technical_review,
+            project_facts=project_facts,
+            technical_analysis=technical_analysis,
         )
         timings["technical_review_ms"] = self._elapsed_ms(stage_start)
 
@@ -289,6 +329,113 @@ class DraftProjectPostUseCase:
         if "unsupported" in technical_review.lower():
             warnings.append("Technical review mentions unsupported claims.")
         return warnings
+
+    def _ensure_technical_review_contract(
+        self,
+        technical_review: str,
+        project_facts: str,
+        technical_analysis: str,
+    ) -> str:
+        """Conservatively repair missing machine-readable review contract parts."""
+        repaired = technical_review.strip()
+        if not self._extract_review_verdict(repaired):
+            verdict = self._infer_review_verdict(repaired)
+            repaired = "\n\n".join([repaired, "## Verdict", verdict])
+        if not self._extract_file_paths(repaired):
+            evidence_paths = self._extract_file_paths(
+                "\n\n".join([project_facts, technical_analysis])
+            )
+            if evidence_paths:
+                repaired = "\n\n".join(
+                    [
+                        repaired,
+                        "## Evidence References",
+                        "\n".join(f"- `{path}`" for path in evidence_paths[:5]),
+                    ]
+                )
+        return repaired
+
+    def _extract_review_verdict(self, content: str) -> str | None:
+        """Extract a machine-readable review verdict."""
+        match = re.search(
+            r"(?:##\s*Verdict|Verdict:)\s*\n?\s*\*{0,2}(PASS|BLOCK)\*{0,2}",
+            content,
+        )
+        if match:
+            return match.group(1)
+        return None
+
+    def _infer_review_verdict(self, technical_review: str) -> str:
+        """Infer a conservative verdict when the LLM omits the final section."""
+        lower = technical_review.lower()
+        blocking_terms = (
+            "unsupported",
+            "not supported",
+            "weak",
+            "exaggeration",
+            "exaggerated",
+            "required correction",
+        )
+        if any(term in lower for term in blocking_terms):
+            return "BLOCK"
+        return "PASS"
+
+    def _extract_file_paths(self, content: str) -> list[str]:
+        """Extract Markdown-friendly file path references."""
+        pattern = re.compile(r"`?([\w./-]+\.[A-Za-z0-9]{1,8})`?")
+        paths = []
+        seen: set[str] = set()
+        for match in pattern.findall(content):
+            path = match.strip().rstrip(":,.)")
+            if path not in seen:
+                seen.add(path)
+                paths.append(path)
+        return paths
+
+    def _draft_contract_issues(self, draft: str) -> list[str]:
+        """Return deterministic contract issues for a generated draft."""
+        issues = []
+        if not draft.strip():
+            return ["draft is empty"]
+        if not any(line.startswith("# ") for line in draft.splitlines()):
+            issues.append("draft must start with one H1 title")
+        forbidden = [
+            heading for heading in FORBIDDEN_DRAFT_HEADINGS if heading in draft
+        ]
+        if forbidden:
+            issues.append(
+                "draft contains forbidden pipeline headings: " + ", ".join(forbidden)
+            )
+        if not self._has_prose_paragraphs(draft):
+            issues.append("draft must contain at least three prose paragraphs")
+        generic = [
+            phrase for phrase in GENERIC_DRAFT_PHRASES if phrase in draft.lower()
+        ]
+        if generic:
+            issues.append(
+                "draft contains generic or overstated phrases: " + ", ".join(generic)
+            )
+        return issues
+
+    def _has_prose_paragraphs(self, content: str, min_paragraphs: int = 3) -> bool:
+        """Check whether Markdown content has enough prose paragraphs."""
+        paragraphs = 0
+        for block in content.split("\n\n"):
+            block = block.strip()
+            if not block:
+                continue
+            if block.startswith("#"):
+                continue
+            if block.startswith(("- ", "* ")):
+                continue
+            if re.match(r"\d+\.\s", block):
+                continue
+            if block.startswith("```"):
+                continue
+            sentence_count = len(re.findall(r"[.!?](?: |$)", block))
+            if sentence_count >= 2:
+                paragraphs += 1
+        return paragraphs >= min_paragraphs
 
     def _review_blocks_finalization(self, technical_review: str) -> bool:
         """Check whether the technical review blocks finalization."""

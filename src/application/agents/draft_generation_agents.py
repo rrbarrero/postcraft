@@ -159,7 +159,7 @@ For each section include:
 
 
 class TechnicalWriterAgent:
-    """Generate the first Markdown draft."""
+    """Generate and repair Markdown drafts."""
 
     def __init__(self, llm_port: ILlmPort) -> None:
         self.llm_port = llm_port
@@ -173,9 +173,23 @@ class TechnicalWriterAgent:
     ) -> str:
         """Generate a first draft."""
         prompt = f"""/no_think
-Write a portfolio technical post draft in {language}.
-Use only supported claims. Mark uncertain claims as [pending verification].
-Do not say production-ready. Do not overstate architecture.
+Write a standalone portfolio technical post in {language}.
+
+Use the outline as a private writing plan, not as content to paste.
+Return an article that a reader could publish as a draft blog post.
+
+Hard rules:
+- Return only the Markdown article.
+- Start with one H1 title.
+- Use prose sections with paragraphs, not an outline dump.
+- Do not include sections named "Outline", "Technical Analysis",
+  "Portfolio Positioning", "Supported Claims", "Weak Or Unsupported Claims",
+  "Claims To Avoid", or "Required Corrections".
+- Do not copy bullet lists from the outline unless they become natural prose.
+- Use only supported claims.
+- Mark uncertain claims as [pending verification].
+- Do not say production-ready, scalable, full-featured, must-have, or seamless.
+- Do not overstate architecture.
 
 Outline:
 {self._truncate(outline)}
@@ -186,7 +200,53 @@ Technical analysis:
 Portfolio positioning:
 {self._truncate(portfolio_positioning)}
 
-Return only the Markdown draft.
+Return only the Markdown draft article.
+"""
+        return self.llm_port.generate(self._truncate(prompt, MAX_PROMPT_CONTEXT_CHARS))
+
+    def repair(
+        self,
+        draft: str,
+        issues: list[str],
+        outline: str,
+        technical_analysis: str,
+        portfolio_positioning: str,
+        language: str = "English",
+    ) -> str:
+        """Rewrite a malformed draft into a standalone article."""
+        issue_list = "\n".join(f"- {issue}" for issue in issues)
+        prompt = f"""/no_think
+Rewrite the malformed draft into a standalone portfolio technical post in {language}.
+
+The current draft failed these deterministic artifact checks:
+{issue_list}
+
+Hard rules:
+- Return only the Markdown article.
+- Start with one H1 title.
+- Write prose paragraphs under article sections.
+- Do not include "## Outline", "Technical Analysis", "Portfolio Positioning",
+  "Claims To Avoid", "Supported Claims", "Weak Or Unsupported Claims", or
+  "Required Corrections".
+- Do not include the outline itself.
+- Do not include review language or meta-commentary about the pipeline.
+- Do not use generic marketing words such as scalable, production-ready,
+  full-featured, must-have, seamless, or seamlessly.
+- Preserve only claims grounded in the evidence.
+
+Malformed draft:
+{self._truncate(draft, 2_200)}
+
+Original outline to use only as a plan:
+{self._truncate(outline)}
+
+Technical analysis:
+{self._truncate(technical_analysis)}
+
+Portfolio positioning:
+{self._truncate(portfolio_positioning)}
+
+Return only the Markdown article.
 """
         return self.llm_port.generate(self._truncate(prompt, MAX_PROMPT_CONTEXT_CHARS))
 
@@ -215,6 +275,8 @@ class TechnicalReviewerAgent:
         prompt = f"""/no_think
 Review the draft against the evidence. Answer in {language}.
 Be strict. Flag generic or unsupported claims.
+Reference specific file paths for supported or unsupported technical claims
+whenever the evidence contains file paths.
 
 Draft:
 {self._truncate(draft, 2_000)}
@@ -227,10 +289,13 @@ Technical analysis:
 
 Required format:
 ## Supported Claims
+- Claim, with file-path evidence when available.
 
 ## Weak Or Unsupported Claims
+- Claim, with missing or weak file-path evidence when relevant.
 
 ## Exaggerations
+- Exaggerated claim and why the evidence does not support it.
 
 ## Required Corrections
 

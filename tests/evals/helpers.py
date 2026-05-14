@@ -59,9 +59,7 @@ def count_verdicts(content: str) -> int:
     heading_pattern = re.compile(
         r"(?:##\s*Verdict|Veridict)\s*\n\s*\*{0,2}(PASS|BLOCK)\*{0,2}"
     )
-    inline_pattern = re.compile(
-        r"\*{0,2}Verdict\*{0,2}:\s*\*{0,2}(PASS|BLOCK)\*{0,2}"
-    )
+    inline_pattern = re.compile(r"\*{0,2}Verdict\*{0,2}:\s*\*{0,2}(PASS|BLOCK)\*{0,2}")
     return len(heading_pattern.findall(content)) + len(inline_pattern.findall(content))
 
 
@@ -142,7 +140,15 @@ def has_unsupported_architecture_labels(content: str) -> list[str]:
     return found
 
 
-FILE_PATH_PATTERN = re.compile(r"(?:^|[\s(])([\w./-]+\.\w{1,4})(?:[\s$:,)\]])")
+FILE_PATH_PATTERN = re.compile(
+    r"`?("
+    r"(?:[\w.-]+/)+[\w.-]+\.(?:py|rs|md|toml|yaml|yml|json|js|ts|tsx|jsx)"
+    r"|(?:README|Cargo|pyproject|package|uv|docker-compose)\."
+    r"(?:md|toml|json|yaml|yml|lock)"
+    r"|[\w-]+\.(?:py|rs|md|toml|yaml|yml|json|js|ts|tsx|jsx)"
+    r"|Makefile|makefile|Dockerfile"
+    r")`?"
+)
 
 
 def extract_file_paths(content: str) -> list[str]:
@@ -177,6 +183,12 @@ def extract_review_sections(content: str) -> dict[str, list[str]]:
             claim = line.strip()[2:]
             if claim:
                 sections[current_section].append(claim)
+        elif current_section is not None and sections[current_section]:
+            continuation = line.strip()
+            if continuation:
+                sections[current_section][-1] = (
+                    f"{sections[current_section][-1]} {continuation}"
+                )
     return sections
 
 
