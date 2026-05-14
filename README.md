@@ -45,6 +45,11 @@ post traceable back to repository evidence and review artifacts.
 This section documents what has already been implemented in PostCraft and will
 be updated as the pipeline grows.
 
+Ongoing progress notes are tracked in [progress/20260514.md](progress/20260514.md).
+This is where we will keep updating the concrete evolution of the project,
+including what changed, what the latest runs revealed, and what needs to be
+fixed next.
+
 ### Implemented Flow
 
 PostCraft currently supports a local, auditable draft-generation flow. The user

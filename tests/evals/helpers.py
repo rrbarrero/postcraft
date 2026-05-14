@@ -19,6 +19,12 @@ def load_artifact(workspace_path: Path, filename: str) -> str:
     return path.read_text(encoding="utf-8")
 
 
+def require_artifact(workspace_path: Path, filename: str) -> str:
+    """Load a workspace artifact, raising FileNotFoundError if missing."""
+    path = workspace_path / filename
+    return path.read_text(encoding="utf-8")
+
+
 def has_forbidden_headings(content: str) -> list[str]:
     """Check if content contains any forbidden headings.
 
@@ -50,13 +56,13 @@ def extract_verdict(content: str) -> str | None:
 
 def count_verdicts(content: str) -> int:
     """Count how many distinct verdict mentions exist in the review."""
-    pattern = re.compile(r"(?:##\s*Verdict|Veridict)\s*\n\s*\*{0,2}(PASS|BLOCK)\*{0,2}")
-    matches = pattern.findall(content)
-    if matches:
-        return len(matches)
-    inline_pattern = re.compile(r"\*{0,2}Verdict\*{0,2}:\s*\*{0,2}(PASS|BLOCK)\*{0,2}")
-    inline_matches = inline_pattern.findall(content)
-    return len(inline_matches)
+    heading_pattern = re.compile(
+        r"(?:##\s*Verdict|Veridict)\s*\n\s*\*{0,2}(PASS|BLOCK)\*{0,2}"
+    )
+    inline_pattern = re.compile(
+        r"\*{0,2}Verdict\*{0,2}:\s*\*{0,2}(PASS|BLOCK)\*{0,2}"
+    )
+    return len(heading_pattern.findall(content)) + len(inline_pattern.findall(content))
 
 
 def has_prose_paragraphs(content: str, min_paragraphs: int = 3) -> bool:

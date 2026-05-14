@@ -40,4 +40,4 @@ ifndef PATH
 endif
 	/home/roberto/.local/bin/uv run python -m src.adapters.primary.cli draft-project-post $(PATH)
 
-all: lint typecheck format test
+all: lint typecheck format test-full
