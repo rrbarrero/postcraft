@@ -1,0 +1,73 @@
+[project]
+name = "blog-poster"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "langchain-openai>=1.2.1",
+    "langgraph>=1.1.10",
+    "pydantic>=2.13.4",
+    "pydantic-settings>=2.14.1",
+    "typer>=0.25.1",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*"]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.3",
+    "ruff>=0.15.12",
+    "ty>=0.0.35",
+]
+
+[project.scripts]
+blog-poster = "src.adapters.primary.cli:app"
+
+[tool.ruff]
+target-version = "py314"
+line-length = 88
+indent-width = 4
+
+[tool.ruff.lint]
+preview = true
+select = [
+    "A",    # builtin shadowing
+    "B",    # bugbear
+    "C4",   # simplify comprehensions
+    "E",    # pycodestyle errors
+    "F",    # pyflakes
+    "FBT",  # boolean trap
+    "G",    # logging
+    "I",    # isort imports
+    "N",    # pep8 naming
+    "RET",  # return statements
+    "S",    # bandit security
+    "TRY",  # try/except
+    "UP",   # pyupgrade
+    "W",    # pycodestyle warnings
+    "RUF",  # ruff specific
+]
+ignore = [
+    "E501",    # line too long (handled by formatter)
+    "S101",    # assert (useful for tests)
+    "S105",    # hardcoded password string
+    "S106",    # hardcoded password assignment
+    "S324",    # hash random
+    "RET505",  # unnecessary else-after-return (too strict)
+    "TRY003",  # raise-from-literal (sometimes useful)
+]
+
+extend-select = [
+    "PLC0415",  # import outside top-level
+    "RUF012",  # mutable class attributes
+    "RUF015",  # unnecessary-generator
+    "RUF047",  # unnecessary-needs-await
+]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
