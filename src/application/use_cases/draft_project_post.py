@@ -173,15 +173,23 @@ class DraftProjectPostUseCase:
     ) -> None:
         """Persist all run artifacts."""
         self.workspace.write_json(workspace_path, "input.json", request)
-        self.workspace.write_text(workspace_path, "file_inventory.md", artifacts.file_inventory)
-        self.workspace.write_text(workspace_path, "selected_files.md", artifacts.selected_files)
-        self.workspace.write_text(workspace_path, "project_facts.md", artifacts.project_facts)
+        self.workspace.write_text(
+            workspace_path, "file_inventory.md", artifacts.file_inventory
+        )
+        self.workspace.write_text(
+            workspace_path, "selected_files.md", artifacts.selected_files
+        )
+        self.workspace.write_text(
+            workspace_path, "project_facts.md", artifacts.project_facts
+        )
         self.workspace.write_text(
             workspace_path,
             "technical_analysis.md",
             artifacts.technical_analysis,
         )
-        self.workspace.write_text(workspace_path, "post_angles.md", artifacts.post_angles)
+        self.workspace.write_text(
+            workspace_path, "post_angles.md", artifacts.post_angles
+        )
         self.workspace.write_text(
             workspace_path,
             "portfolio_positioning.md",
@@ -248,7 +256,9 @@ class DraftProjectPostUseCase:
             for dep in scan.dependencies
         )
         lines.extend(["", "## Languages", ""])
-        lines.extend(f"- {name}: {count} files" for name, count in scan.languages.items())
+        lines.extend(
+            f"- {name}: {count} files" for name, count in scan.languages.items()
+        )
         lines.extend(["", "## Observed Signals", ""])
         lines.extend(
             f"- {signal.name} ({signal.confidence}): "

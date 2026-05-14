@@ -48,7 +48,9 @@ Generate 3 angles, then:
 """
         return self.llm_port.generate(self._truncate(prompt, MAX_PROMPT_CONTEXT_CHARS))
 
-    def _truncate(self, value: str, max_chars: int = MAX_PREVIOUS_ARTIFACT_CHARS) -> str:
+    def _truncate(
+        self, value: str, max_chars: int = MAX_PREVIOUS_ARTIFACT_CHARS
+    ) -> str:
         if len(value) <= max_chars:
             return value
         return f"{value[:max_chars]}\n[truncated]"
@@ -96,7 +98,9 @@ Required format:
 """
         return self.llm_port.generate(self._truncate(prompt, MAX_PROMPT_CONTEXT_CHARS))
 
-    def _truncate(self, value: str, max_chars: int = MAX_PREVIOUS_ARTIFACT_CHARS) -> str:
+    def _truncate(
+        self, value: str, max_chars: int = MAX_PREVIOUS_ARTIFACT_CHARS
+    ) -> str:
         if len(value) <= max_chars:
             return value
         return f"{value[:max_chars]}\n[truncated]"
@@ -146,7 +150,9 @@ For each section include:
 """
         return self.llm_port.generate(self._truncate(prompt, MAX_PROMPT_CONTEXT_CHARS))
 
-    def _truncate(self, value: str, max_chars: int = MAX_PREVIOUS_ARTIFACT_CHARS) -> str:
+    def _truncate(
+        self, value: str, max_chars: int = MAX_PREVIOUS_ARTIFACT_CHARS
+    ) -> str:
         if len(value) <= max_chars:
             return value
         return f"{value[:max_chars]}\n[truncated]"
@@ -184,7 +190,9 @@ Return only the Markdown draft.
 """
         return self.llm_port.generate(self._truncate(prompt, MAX_PROMPT_CONTEXT_CHARS))
 
-    def _truncate(self, value: str, max_chars: int = MAX_PREVIOUS_ARTIFACT_CHARS) -> str:
+    def _truncate(
+        self, value: str, max_chars: int = MAX_PREVIOUS_ARTIFACT_CHARS
+    ) -> str:
         if len(value) <= max_chars:
             return value
         return f"{value[:max_chars]}\n[truncated]"
@@ -233,7 +241,9 @@ Use PASS only if there are no critical unsupported claims. Otherwise use BLOCK.
 """
         return self.llm_port.generate(self._truncate(prompt, MAX_PROMPT_CONTEXT_CHARS))
 
-    def _truncate(self, value: str, max_chars: int = MAX_PREVIOUS_ARTIFACT_CHARS) -> str:
+    def _truncate(
+        self, value: str, max_chars: int = MAX_PREVIOUS_ARTIFACT_CHARS
+    ) -> str:
         if len(value) <= max_chars:
             return value
         return f"{value[:max_chars]}\n[truncated]"
@@ -265,7 +275,9 @@ Technical review:
 """
         return self.llm_port.generate(self._truncate(prompt, MAX_PROMPT_CONTEXT_CHARS))
 
-    def _truncate(self, value: str, max_chars: int = MAX_PREVIOUS_ARTIFACT_CHARS) -> str:
+    def _truncate(
+        self, value: str, max_chars: int = MAX_PREVIOUS_ARTIFACT_CHARS
+    ) -> str:
         if len(value) <= max_chars:
             return value
         return f"{value[:max_chars]}\n[truncated]"

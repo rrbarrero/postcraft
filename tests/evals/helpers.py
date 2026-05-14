@@ -50,15 +50,11 @@ def extract_verdict(content: str) -> str | None:
 
 def count_verdicts(content: str) -> int:
     """Count how many distinct verdict mentions exist in the review."""
-    pattern = re.compile(
-        r"(?:##\s*Verdict|Veridict)\s*\n\s*\*{0,2}(PASS|BLOCK)\*{0,2}"
-    )
+    pattern = re.compile(r"(?:##\s*Verdict|Veridict)\s*\n\s*\*{0,2}(PASS|BLOCK)\*{0,2}")
     matches = pattern.findall(content)
     if matches:
         return len(matches)
-    inline_pattern = re.compile(
-        r"\*{0,2}Verdict\*{0,2}:\s*\*{0,2}(PASS|BLOCK)\*{0,2}"
-    )
+    inline_pattern = re.compile(r"\*{0,2}Verdict\*{0,2}:\s*\*{0,2}(PASS|BLOCK)\*{0,2}")
     inline_matches = inline_pattern.findall(content)
     return len(inline_matches)
 
@@ -97,3 +93,122 @@ def is_standalone_article(content: str) -> bool:
     if not has_title:
         return False
     return has_prose_paragraphs(content, min_paragraphs=2)
+
+
+GENERIC_PHRASES = [
+    "users often struggle",
+    "seamlessly",
+    "production-ready",
+    "scalable",
+    "full-featured",
+    "must-have",
+]
+
+
+def has_generic_phrases(content: str) -> list[str]:
+    """Check if content contains any forbidden generic marketing phrases.
+
+    Returns list of matched phrases (case-insensitive).
+    """
+    lower = content.lower()
+    return [phrase for phrase in GENERIC_PHRASES if phrase in lower]
+
+
+UNSUPPORTED_ARCHITECTURE_LABELS = [
+    "hexagonal architecture",
+    "microservices architecture",
+    "event-driven architecture",
+    "clean architecture",
+    "onion architecture",
+]
+
+
+def has_unsupported_architecture_labels(content: str) -> list[str]:
+    """Check if content uses absolute architecture labels without hedging.
+
+    Returns list of matched labels (case-insensitive).
+    """
+    lower = content.lower()
+    found = []
+    for label in UNSUPPORTED_ARCHITECTURE_LABELS:
+        if label in lower:
+            found.append(label)
+    return found
+
+
+FILE_PATH_PATTERN = re.compile(r"(?:^|[\s(])([\w./-]+\.\w{1,4})(?:[\s$:,)\]])")
+
+
+def extract_file_paths(content: str) -> list[str]:
+    """Extract file paths referenced in the content.
+
+    Looks for patterns resembling source file paths with extensions.
+    """
+    matches = FILE_PATH_PATTERN.findall(content)
+    seen: set[str] = set()
+    paths: list[str] = []
+    for m in matches:
+        m = m.strip().rstrip(":,.)")
+        if m not in seen and "." in m:
+            seen.add(m)
+            paths.append(m)
+    return paths
+
+
+def extract_review_sections(content: str) -> dict[str, list[str]]:
+    """Parse a technical_review.md into section headings and their claims.
+
+    Returns dict mapping section title to list of claim strings.
+    """
+    sections: dict[str, list[str]] = {}
+    current_section: str | None = None
+    for line in content.split("\n"):
+        section_match = re.match(r"^##\s+(.+)", line)
+        if section_match:
+            current_section = section_match.group(1).strip()
+            sections[current_section] = []
+        elif current_section is not None and line.strip().startswith("- "):
+            claim = line.strip()[2:]
+            if claim:
+                sections[current_section].append(claim)
+    return sections
+
+
+def normalize_claim(text: str) -> str:
+    """Normalize a claim string for duplicate comparison."""
+    return re.sub(r"\s+", " ", text).replace("**", "").strip().lower().rstrip(".")
+
+
+SHORTEN_THRESHOLD = 80
+
+
+def shorten(text: str) -> str:
+    """Truncate claim text for readable error messages."""
+    if len(text) > SHORTEN_THRESHOLD:
+        return text[: SHORTEN_THRESHOLD - 3] + "..."
+    return text
+
+
+def find_duplicate_claims_across_sections(
+    sections: dict[str, list[str]],
+) -> list[tuple[str, str, str]]:
+    """Find claims that appear in multiple review sections.
+
+    Returns list of (claim_text, section_a, section_b) tuples.
+    """
+    normalized_map: dict[str, list[tuple[str, str]]] = {}
+    for section, claims in sections.items():
+        for claim in claims:
+            key = normalize_claim(claim)
+            if key not in normalized_map:
+                normalized_map[key] = []
+            normalized_map[key].append((claim, section))
+
+    duplicates: list[tuple[str, str, str]] = []
+    for key, entries in normalized_map.items():
+        if len(entries) >= 2:
+            for i in range(len(entries)):
+                for j in range(i + 1, len(entries)):
+                    if entries[i][1] != entries[j][1]:
+                        duplicates.append((key, entries[i][1], entries[j][1]))
+    return duplicates

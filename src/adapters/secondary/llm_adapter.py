@@ -31,9 +31,7 @@ class LlmAdapter(ILlmPort):
             return content.strip()
         if isinstance(content, list) and content:
             text_parts = [
-                str(item.get("text", item))
-                if isinstance(item, dict)
-                else str(item)
+                str(item.get("text", item)) if isinstance(item, dict) else str(item)
                 for item in content
             ]
             text = "\n".join(text_parts).strip()

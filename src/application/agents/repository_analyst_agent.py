@@ -220,25 +220,25 @@ Do not mention JSON, Markdown, reports, data processing, production-ready, or st
 - Root path: {scan.root_path}
 - Total files: {scan.total_files}
 - Total directories: {scan.total_directories}
-- Technologies: {techs or 'none detected'}
-- Dependencies: {deps or 'none detected'}
-- Languages: {langs or 'none detected'}""",
+- Technologies: {techs or "none detected"}
+- Dependencies: {deps or "none detected"}
+- Languages: {langs or "none detected"}""",
             f"""Observed project signals:
-{signals or '- none detected'}""",
+{signals or "- none detected"}""",
             f"""Selected evidence index:
-{selected_file_list or '- no selected files available'}""",
+{selected_file_list or "- no selected files available"}""",
         ]
 
         if include_inventory:
             sections.append(
                 f"""File inventory excerpt:
-{files or '- no files detected'}"""
+{files or "- no files detected"}"""
             )
 
         if include_excerpts:
             sections.append(
                 f"""Selected evidence excerpts:
-{selected_files or '- no selected file excerpts available'}"""
+{selected_files or "- no selected file excerpts available"}"""
             )
 
         return "\n\n".join(sections)

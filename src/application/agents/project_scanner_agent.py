@@ -470,15 +470,19 @@ class ProjectScannerAgent(BaseAgent[ProjectScannerState]):
     def _is_automation_path(self, path: str) -> bool:
         """Check whether a path describes automation or runtime setup."""
         name = Path(path).name.lower()
-        return name in {
-            "docker-compose.yml",
-            "docker-compose.yaml",
-            "dockerfile",
-            "justfile",
-            "makefile",
-            "taskfile.yml",
-            "taskfile.yaml",
-        } or ".github/workflows/" in path.lower()
+        return (
+            name
+            in {
+                "docker-compose.yml",
+                "docker-compose.yaml",
+                "dockerfile",
+                "justfile",
+                "makefile",
+                "taskfile.yml",
+                "taskfile.yaml",
+            }
+            or ".github/workflows/" in path.lower()
+        )
 
     def _is_documentation_path(self, path: str) -> bool:
         """Check whether a path looks like local project documentation."""

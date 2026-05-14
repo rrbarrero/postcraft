@@ -118,7 +118,9 @@ def test_repository_analyst_prompts_stay_within_local_context_budget(
     (tmp_path / "app/services").mkdir(parents=True)
     (tmp_path / "tests").mkdir()
 
-    long_content = "\n".join(f"line {index}: implementation detail" for index in range(300))
+    long_content = "\n".join(
+        f"line {index}: implementation detail" for index in range(300)
+    )
     (tmp_path / "README.md").write_text(long_content)
     (tmp_path / "pyproject.toml").write_text("[project]\nname = 'test'\n")
     (tmp_path / "docs/design.md").write_text(long_content)
