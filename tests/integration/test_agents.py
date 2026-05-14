@@ -3,6 +3,8 @@
 from pathlib import Path
 from typing import cast
 
+import pytest
+
 from src.adapters.secondary.file_system import FileSystemAdapter
 from src.adapters.secondary.llm_adapter import LlmAdapter
 from src.application.agents.project_scanner_agent import ProjectScannerAgent
@@ -26,6 +28,7 @@ class FakeLlm:
         return object()
 
 
+@pytest.mark.llm
 def test_project_scanner_integration(tmp_path: Path) -> None:
     """Test Project Scanner scans a sample repository."""
     # Create a sample project structure
@@ -134,6 +137,7 @@ def test_repository_analyst_prompts_stay_within_local_context_budget(
     assert all(len(prompt) < 12_000 for prompt in fake_llm.prompts)
 
 
+@pytest.mark.llm
 def test_repository_analyst_integration(tmp_path: Path) -> None:
     """Test Repository Analyst analyzes a scan result."""
     # Create a sample project

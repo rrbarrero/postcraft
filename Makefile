@@ -1,11 +1,12 @@
-.PHONY: help lint typecheck format test analyze draft
+.PHONY: help lint typecheck format test test-full analyze draft
 
 help:
 	@echo "Available targets:"
 	@echo "  lint       - Run ruff linter"
 	@echo "  typecheck  - Run ty type checker"
 	@echo "  format     - Run ruff formatter"
-	@echo "  test       - Run pytest"
+	@echo "  test       - Run pytest (skips LLM tests)"
+	@echo "  test-full  - Run pytest including LLM tests"
 	@echo "  all        - Run all checks (lint, typecheck, format, test)"
 	@echo "  analyze    - Run scan and analyze on a path (Usage: make analyze PATH=/path/to/repo)"
 	@echo "  draft      - Generate local portfolio draft (Usage: make draft PATH=/path/to/repo)"
@@ -21,6 +22,9 @@ format:
 
 test:
 	uv run pytest -v
+
+test-full:
+	uv run pytest -v -o "addopts="
 
 analyze:
 ifndef PATH

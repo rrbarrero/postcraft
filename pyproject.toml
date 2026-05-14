@@ -16,6 +16,12 @@ dependencies = [
 where = ["."]
 include = ["src*"]
 
+[tool.pytest.ini_options]
+markers = [
+    "llm: tests that require a real LLM backend (skipped by default)",
+]
+addopts = "-m 'not llm'"
+
 [dependency-groups]
 dev = [
     "pytest>=9.0.3",

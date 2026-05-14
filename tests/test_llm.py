@@ -1,6 +1,9 @@
+import pytest
+
 from src.shared.llm import LLM
 
 
+@pytest.mark.llm
 def test_llm_get_instance():
     llm = LLM()
     instance = llm.get_instance()
