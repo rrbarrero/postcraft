@@ -190,6 +190,47 @@ class ProjectScannerAgent(BaseAgent[ProjectScannerState]):
             except Exception:
                 logger.debug("Failed to parse package.json")
 
+        if (root / "Cargo.toml").exists():
+            try:
+                content = self.file_system.read_file(root / "Cargo.toml")
+                data = tomllib.loads(content)
+
+                for name, value in data.get("dependencies", {}).items():
+                    if isinstance(value, str):
+                        dependencies.append(
+                            {"name": name, "version": value, "type": "runtime"}
+                        )
+                    elif isinstance(value, dict):
+                        version = value.get("version")
+                        dependencies.append(
+                            {
+                                "name": name,
+                                "version": version
+                                if isinstance(version, str)
+                                else None,
+                                "type": "runtime",
+                            }
+                        )
+
+                for name, value in data.get("dev-dependencies", {}).items():
+                    if isinstance(value, str):
+                        dependencies.append(
+                            {"name": name, "version": value, "type": "dev"}
+                        )
+                    elif isinstance(value, dict):
+                        version = value.get("version")
+                        dependencies.append(
+                            {
+                                "name": name,
+                                "version": version
+                                if isinstance(version, str)
+                                else None,
+                                "type": "dev",
+                            }
+                        )
+            except Exception:
+                logger.debug("Failed to parse Cargo.toml")
+
         state["dependencies"] = dependencies[:50]
         return state
 

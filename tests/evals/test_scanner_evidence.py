@@ -8,7 +8,6 @@ signal discovery, and exclusion of non-source artifacts.
 from pathlib import Path
 from typing import cast
 
-import pytest
 from langchain_core.language_models import BaseChatModel
 
 from src.adapters.secondary.file_system import FileSystemAdapter
@@ -45,10 +44,6 @@ def test_rust_fixture_detects_technology() -> None:
     assert "Cargo.toml" in {t.config_file for t in result.technologies}
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="Cargo.toml dependency parsing not yet implemented in scanner",
-)
 def test_rust_fixture_extracts_cargo_dependencies() -> None:
     """Scanner must extract dependencies from Cargo.toml."""
     result = _scan("rust_home_assistant_cli")
