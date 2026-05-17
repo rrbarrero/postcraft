@@ -121,6 +121,16 @@ class DraftProjectPostUseCase:
         )
         timings["outline_ms"] = self._elapsed_ms(stage_start)
 
+        outline_issues = self._outline_contract_issues(outline)
+        if outline_issues:
+            outline = self._clean_outline(outline)
+
+        pipeline_warnings: list[str] = []
+        if outline_issues:
+            pipeline_warnings.append(
+                "Outline validated with issues: " + "; ".join(outline_issues)
+            )
+
         stage_start = perf_counter()
         draft = self.writer.generate(
             outline=outline,
@@ -157,6 +167,10 @@ class DraftProjectPostUseCase:
             project_facts=project_facts,
             technical_analysis=technical_analysis,
         )
+        technical_review, review_dup_warnings = self._flag_review_duplicate_claims(
+            technical_review
+        )
+        pipeline_warnings.extend(review_dup_warnings)
         timings["technical_review_ms"] = self._elapsed_ms(stage_start)
 
         stage_start = perf_counter()
@@ -181,7 +195,7 @@ class DraftProjectPostUseCase:
             draft=draft,
             technical_review=technical_review,
             final_post=final_post,
-            warnings=self._collect_warnings(technical_review),
+            warnings=self._collect_warnings(technical_review, pipeline_warnings),
         )
 
         stage_start = perf_counter()
@@ -321,9 +335,13 @@ class DraftProjectPostUseCase:
             ]
         )
 
-    def _collect_warnings(self, technical_review: str) -> list[str]:
-        """Collect lightweight warnings from the technical review."""
-        warnings = []
+    def _collect_warnings(
+        self,
+        technical_review: str,
+        extra_warnings: list[str] | None = None,
+    ) -> list[str]:
+        """Collect lightweight warnings from the pipeline."""
+        warnings = list(extra_warnings) if extra_warnings else []
         if self._review_blocks_finalization(technical_review):
             warnings.append("Technical review returned BLOCK.")
         if "unsupported" in technical_review.lower():
@@ -354,6 +372,81 @@ class DraftProjectPostUseCase:
                     ]
                 )
         return repaired
+
+    def _flag_review_duplicate_claims(
+        self, technical_review: str
+    ) -> tuple[str, list[str]]:
+        """Check for duplicate claims across incompatible review sections.
+
+        Returns (modified_review, warnings).
+        """
+        sections = self._parse_review_sections(technical_review)
+        duplicates = self._find_cross_section_duplicates(sections)
+        if not duplicates:
+            return technical_review, []
+
+        warning_lines = ["## Pipeline Note", ""]
+        dup_warnings = []
+        for claim, section_a, section_b in duplicates:
+            msg = (
+                f"Duplicate claim detected across conflicting sections: "
+                f"'{claim}' found in both '{section_a}' and '{section_b}'"
+            )
+            warning_lines.append(f"- {msg}")
+            dup_warnings.append(msg)
+
+        modified = technical_review.strip() + "\n\n" + "\n".join(warning_lines)
+        return modified, dup_warnings
+
+    def _parse_review_sections(self, content: str) -> dict[str, list[str]]:
+        """Parse technical_review.md into section headings and their claims."""
+        sections: dict[str, list[str]] = {}
+        current_section: str | None = None
+        for line in content.split("\n"):
+            section_match = re.match(r"^##\s+(.+)", line)
+            if section_match:
+                current_section = section_match.group(1).strip()
+                sections[current_section] = []
+            elif current_section is not None and line.strip().startswith("- "):
+                claim = line.strip()[2:]
+                if claim:
+                    sections[current_section].append(claim)
+            elif current_section is not None and sections[current_section]:
+                continuation = line.strip()
+                if continuation:
+                    sections[current_section][-1] = (
+                        f"{sections[current_section][-1]} {continuation}"
+                    )
+        return sections
+
+    @staticmethod
+    def _normalize_claim(text: str) -> str:
+        """Normalize a claim string for duplicate comparison."""
+        return re.sub(r"\s+", " ", text).replace("**", "").strip().lower().rstrip(".")
+
+    def _find_cross_section_duplicates(
+        self, sections: dict[str, list[str]]
+    ) -> list[tuple[str, str, str]]:
+        """Find claims appearing in multiple different review sections.
+
+        Returns list of (normalized_claim, section_a, section_b).
+        """
+        normalized_map: dict[str, list[tuple[str, str]]] = {}
+        for section, claims in sections.items():
+            for claim in claims:
+                key = self._normalize_claim(claim)
+                if key not in normalized_map:
+                    normalized_map[key] = []
+                normalized_map[key].append((claim, section))
+
+        duplicates: list[tuple[str, str, str]] = []
+        for key, entries in normalized_map.items():
+            if len(entries) >= 2:
+                for i in range(len(entries)):
+                    for j in range(i + 1, len(entries)):
+                        if entries[i][1] != entries[j][1]:
+                            duplicates.append((key, entries[i][1], entries[j][1]))
+        return duplicates
 
     def _extract_review_verdict(self, content: str) -> str | None:
         """Extract a machine-readable review verdict."""
@@ -416,6 +509,25 @@ class DraftProjectPostUseCase:
                 "draft contains generic or overstated phrases: " + ", ".join(generic)
             )
         return issues
+
+    def _outline_contract_issues(self, outline: str) -> list[str]:
+        """Return deterministic contract issues for a generated outline."""
+        issues = []
+        generic = [
+            phrase for phrase in GENERIC_DRAFT_PHRASES if phrase in outline.lower()
+        ]
+        if generic:
+            issues.append(
+                "outline contains generic or overstated phrases: " + ", ".join(generic)
+            )
+        return issues
+
+    def _clean_outline(self, outline: str) -> str:
+        """Remove generic phrases from outline content."""
+        cleaned = outline
+        for phrase in GENERIC_DRAFT_PHRASES:
+            cleaned = re.sub(re.escape(phrase), "", cleaned, flags=re.IGNORECASE)
+        return re.sub(r"  +", " ", cleaned)
 
     def _has_prose_paragraphs(self, content: str, min_paragraphs: int = 3) -> bool:
         """Check whether Markdown content has enough prose paragraphs."""

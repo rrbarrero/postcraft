@@ -9,7 +9,6 @@ are actionable.
 from pathlib import Path
 from typing import Any, ClassVar
 
-import pytest
 from langchain_core.language_models import BaseChatModel
 
 from src.adapters.secondary.file_system import FileSystemAdapter
@@ -373,10 +372,6 @@ class TestPipelineArtifactContracts:
             "reviewer must receive repaired draft, not malformed outline dump"
         )
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="Pipeline does not yet validate outline generic claims before writer",
-    )
     def test_outline_with_generic_claims_is_flagged(self, tmp_path: Path) -> None:
         """Outline containing 'users often struggle' should be caught before writing."""
         project_path = tmp_path / "project"
@@ -400,10 +395,29 @@ class TestPipelineArtifactContracts:
             f"outline must not contain generic claims before reaching writer: {found}"
         )
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="Pipeline does not yet validate reviewer claim categories",
-    )
+    def test_outline_generic_claim_cleaning_is_case_insensitive(
+        self, tmp_path: Path
+    ) -> None:
+        """Outline cleanup must remove generic claims regardless of casing."""
+        project_path = tmp_path / "project"
+        workspace_root = tmp_path / "workspaces"
+        project_path.mkdir()
+        _create_project(project_path)
+
+        outline_with_generic = (
+            "# Title\n\n## Outline\n1. Problem: Users Often Struggle with X."
+        )
+        llm = _ScriptedDraftLlm(outline=outline_with_generic)
+        result = _build_use_case(llm).execute(
+            DraftRequest(
+                project_path=str(project_path),
+                workspace_root=str(workspace_root),
+            )
+        )
+        outline = (result.workspace_path / "outline.md").read_text(encoding="utf-8")
+        found = has_generic_phrases(outline)
+        assert found == [], f"outline cleanup must be case-insensitive, found: {found}"
+
     def test_duplicate_review_claims_across_sections_flagged(
         self, tmp_path: Path
     ) -> None:
